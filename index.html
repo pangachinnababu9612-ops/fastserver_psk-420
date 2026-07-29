@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 Dashboard</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a30; --accent:#3ea6ff; --accent2:#1c2733;
+    --text:#e7e9ee; --muted:#8b93a1; --good:#3ecf8e; --bad:#ff5d5d;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  header{padding:10px 20px;border-bottom:1px solid #232734;}
+  header h1{margin:0;font-size:18px;font-weight:600;color:var(--accent);}
+
+  /* ---- top bar: main features ---- */
+  #mainBar{display:flex;gap:8px;padding:10px 16px;background:var(--panel);
+    overflow-x:auto;border-bottom:1px solid #232734;min-height:90px;align-items:center;
+    width:100%;box-sizing:border-box;}
+  .mainBtn{flex:1 1 0;padding:10px 18px;border-radius:8px;border:1px solid #2a2f3a;
+    background:var(--accent2);color:var(--text);cursor:pointer;font-size:14px;white-space:nowrap;
+    height:60px;display:flex;align-items:center;justify-content:center;}
+  .mainBtn.active{background:var(--accent);color:#04121f;font-weight:600;border-color:var(--accent);}
+
+  /* ---- sub bar: sub-features of active main feature ---- */
+  #subBar{display:flex;gap:8px;padding:8px 16px;background:#12151c;
+    overflow-x:auto;border-bottom:1px solid #232734;width:100%;box-sizing:border-box;}
+  #subBar.hidden{display:none;}
+  .subBtn{flex:1 1 0;padding:7px 14px;border-radius:6px;border:1px solid #262b36;
+    background:transparent;color:var(--muted);cursor:pointer;font-size:13px;white-space:nowrap;
+    display:flex;align-items:center;justify-content:center;}
+  .subBtn.active{background:#22293a;color:var(--text);border-color:var(--accent);}
+
+  /* ---- middle content area ---- */
+  #content{padding:20px;max-width:900px;margin:0 auto;}
+  .card{background:var(--panel);border:1px solid #232734;border-radius:10px;
+    padding:18px;margin-bottom:16px;text-align:center;}
+  .card h2{margin:0 0 12px 0;font-size:15px;color:var(--accent);}
+  .row{display:flex;align-items:center;justify-content:space-between;
+    padding:8px 0;border-bottom:1px solid #1e2230;}
+  .row:last-child{border-bottom:none;}
+  .label{color:var(--muted);font-size:13px;}
+  .value{font-size:20px;font-weight:600;}
+  .value.good{color:var(--good);}
+  .value.bad{color:var(--bad);}
+
+  .btnRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  button.ctrl{padding:10px 16px;border-radius:8px;border:none;background:var(--accent);
+    color:#04121f;font-weight:600;cursor:pointer;}
+  button.ctrl.secondary{background:var(--accent2);color:var(--text);border:1px solid #2a2f3a;}
+  input[type=text]{padding:9px 10px;border-radius:6px;border:1px solid #2a2f3a;
+    background:#0d0f14;color:var(--text);flex:1;min-width:150px;}
+
+  .box{
+    width:250px;
+    margin:30px auto;
+    padding:20px;
+    background:#333;
+    border-radius:12px;
+    box-shadow:0 0 10px #000;
+}
+
+.homeScreen{display:grid;gap:16px;}
+.homeAction{display:flex;justify-content:center;margin:8px 0 12px;}
+.homeGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
+.homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;}
+.homeBox .label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px;}
+.homeBox .value{font-size:24px;color:#7ad8ff;}
+
+.value{
+    font-size:35px;
+    color:#00ff99;
+}
+h1{
+    color: var(--accent) ;
+}
+</style>
+</head>
+<body>
+
+<header><h1>ESP32 Control Dashboard</h1></header>
+<div id="mainBar"></div>
+<div id="subBar"></div>
+<div id="content"></div>
+
+<script>
+// ---------------------------------------------------------------
+// Feature map: MAIN -> [ SUB features ]  each sub has a render fn
+// Edit this object to add/remove your own features and sub-features.
+// ---------------------------------------------------------------
+const FEATURES = {
+  "Start": [null],
+  "Manage": ["Control", "Bluethoot"],
+  "Order": ["Paid", "No paid","Above 100","Above 500"],
+  
+};
+
+let activeMain = "Start";
+let activeSub = null;
+let latestData = {};
+
+function buildMainBar(){
+  const bar = document.getElementById('mainBar');
+  bar.innerHTML = ' ';
+  Object.keys(FEATURES).forEach(name=>{
+    const b = document.createElement('button');
+    b.className = 'mainBtn' + (name===activeMain ? ' active':'');
+    b.textContent = name;
+    b.onclick = ()=>{
+      activeMain = name;
+      activeSub = name === 'Start' ? null : FEATURES[name][0];
+      buildMainBar();
+      buildSubBar();
+      render();
+    };
+    bar.appendChild(b);
+  });
+}
+
+function buildSubBar(){
+  const bar = document.getElementById('subBar');
+  if (activeMain === 'Start') {
+    bar.innerHTML = '';
+    bar.classList.add('hidden');
+    return;
+  }
+
+  bar.classList.remove('hidden');
+  bar.innerHTML = '';
+  FEATURES[activeMain].forEach(name=>{
+    const b = document.createElement('button');
+    b.className = 'subBtn' + (name===activeSub ? ' active':'');
+    b.textContent = name;
+    b.onclick = ()=>{ activeSub = name; buildSubBar(); render(); };
+    bar.appendChild(b);
+  });
+}
+
+// ---------------------------------------------------------------
+// Renderers per sub-feature. Each returns HTML for the middle panel.
+// Add a new "Main:Sub" key here whenever you add one to FEATURES.
+// ---------------------------------------------------------------
+function render(){
+  const c = document.getElementById('content');
+  if (!activeSub && activeMain === 'Start') {
+    c.innerHTML = `
+      <div class="homeScreen">
+        <div class="card">
+          <h1>Start Home</h1>
+          <div class="homeAction">
+            <button class="ctrl" onclick="openYoutube()">Open YouTube</button>
+          </div>
+          <div class="box">
+            <h2>Temperature</h2>
+            <div class="value"><span id="tem">0.0</span> °C</div>
+          </div>
+          <div class="homeGrid">
+            ${[1,2,3,4,5,6].map(i => `<div class="homeBox"><div class="label">Reading ${i}</div><div class="value homeBoxValue">0.0</div></div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    updateValue();
+    return;
+  }
+
+  const key = activeMain + ':' + activeSub;
+  const renderers = {
+   
+    "Manage:Control": ()=>`
+      <div class="card"><h2>Last Scanned Tag</h2>
+        <div class="row"><span class="label">UID</span><span class="value">${latestData.rfid || 'None'}</span></div>
+      </div>`,
+    "Manage:Bluethoot": ()=>`
+      <div class="card"><h2>Add Authorized Card</h2>
+        <div class="btnRow">
+          <input type="text" id="uidInput" placeholder="Enter UID">
+          <button class="ctrl" onclick="openYoutube()">Add</button>
+        </div>
+      </div>`,
+    "Display:Send Text": ()=>`
+      <div class="card"><h2>LCD Text</h2>
+        <div class="row"><span class="label">Current</span><span class="value">${latestData.lcd || ''}</span></div>
+        <div class="btnRow">
+          <input type="text" id="lcdInput" placeholder="Text to display">
+          <button class="ctrl" onclick="sendLcdText()">Send</button>
+        </div>
+      </div>`,
+    "Display:Backlight": ()=>`
+      <div class="card"><h2>Backlight</h2>
+        <div class="btnRow">
+          <button class="ctrl" onclick="sendControl('lcd','backlight_on')">On</button>
+          <button class="ctrl secondary" onclick="sendControl('lcd','backlight_off')">Off</button>
+        </div>
+      </div>`,
+    "Network:Devices": ()=>`
+      <div class="card"><h2>Connected Nodes</h2>
+        <div class="row"><span class="label">ESP-NOW peers</span><span class="value">${latestData.nodes ?? 0}</span></div>
+      </div>`,
+    "Network:MQTT": ()=>`
+      <div class="card"><h2>MQTT</h2>
+        <div class="btnRow">
+          <button class="ctrl" onclick="sendControl('mqtt','reconnect')">Reconnect</button>
+        </div>
+      </div>`,
+    "Power:Live Voltage": ()=>`
+      <div class="card"><h2>AC Voltage (ZMPT101B)</h2>
+        <div class="row"><span class="label">Reading</span>
+          <span class="value good">${(latestData.voltage ?? 0).toFixed(1)} V</span></div>
+      </div>`,
+    "Power:Calibration": ()=>`
+      <div class="card"><h2>Calibration Factor</h2>
+        <div class="btnRow">
+          <input type="text" id="calInput" placeholder="e.g. 1.045">
+          <button class="ctrl" onclick="sendCal()">Apply</button>
+        </div>
+      </div>`
+  };
+  c.innerHTML = (renderers[key] || (()=>'<div class="card">No data</div>'))();
+  updateValue();
+}
+
+// ---------------------------------------------------------------
+// Backend calls (point these at your ESP32's IP if hosting this
+// HTML file outside the ESP32, e.g. fetch('http://192.168.1.50/api/control'))
+// ---------------------------------------------------------------
+function openYoutube(){
+  window.open('https://www.youtube.com', '_blank', 'noopener,noreferrer');
+}
+
+async function sendControl(feature, action){
+  await fetch('/api/control', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({feature, action})
+  });
+}
+async function addCard(){
+  const uid = document.getElementById('uidInput').value;
+  document.getElementById("Content").innerHTML = "<h2>hello</h2>";
+  await sendControl('rfid', 'add:' + uid);
+}
+async function sendLcdText(){
+  const t = document.getElementById('lcdInput').value;
+  await sendControl('lcd', 'text:' + t);
+}
+async function sendCal(){
+  const v = document.getElementById('calInput').value;
+  await sendControl('power', 'cal:' + v);
+}
+
+// ---------------------------------------------------------------
+// Live data via WebSocket
+// ---------------------------------------------------------------
+function connectWS(){
+  const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  const ws = new WebSocket(`${protocol}${location.host}/ws`);
+  ws.onmessage = (evt)=>{
+    try{
+      latestData = JSON.parse(evt.data);
+      render();
+    }catch(e){}
+  };
+  ws.onclose = ()=> setTimeout(connectWS, 1500);
+}
+
+function updateValue() {
+    const tem = document.getElementById("tem");
+    if (tem) {
+        const temperature = (25 + Math.random() * 10).toFixed(1);
+        tem.textContent = temperature;
+    }
+
+    document.querySelectorAll('.homeBoxValue').forEach((el, index) => {
+        const value = (25 + Math.random() * 10 + index * 0.4).toFixed(1);
+        el.textContent = value;
+    });
+}
+
+
+
+buildMainBar();
+buildSubBar();
+render();
+connectWS();
+setInterval(updateValue,1000);
+
+</script>
+</body>
+</html>
