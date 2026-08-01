@@ -66,15 +66,13 @@
 
 .homeScreen{display:grid;gap:16px;}
 .homeAction{display:flex;justify-content:center;margin:8px 0 12px;}
-.homeGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
-.homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;}
-.homeBox .label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px;}
-.homeBox .value{font-size:24px;color:#7ad8ff;}
+.homeAction .ctrl{width:100%;}
+/* 2 columns x 4 rows layout for the dashboard boxes */
+.homeGrid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;}
+.homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;min-height:108px;display:flex;flex-direction:column;justify-content:center;}
+.homeBox.merged{grid-column:2;grid-row:span 2;min-height:228px;}
+   
 
-.value{
-    font-size:35px;
-    color:#00ff99;
-}
 h1{
     color: var(--accent) ;
 }
@@ -151,15 +149,32 @@ function render(){
       <div class="homeScreen">
         <div class="card">
           <h1>Start Home</h1>
+
           <div class="homeAction">
             <button class="ctrl" onclick="openYoutube()">Open YouTube</button>
           </div>
-          <div class="box">
-            <h2>Temperature</h2>
-            <div class="value"><span id="tem">0.0</span> °C</div>
-          </div>
+
+          <!-- 2-column dashboard layout with one merged box -->
           <div class="homeGrid">
-            ${[1,2,3,4,5,6].map(i => `<div class="homeBox"><div class="label">Reading ${i}</div><div class="value homeBoxValue">0.0</div></div>`).join('')}
+            ${[...Array(8)].map((_, index) => {
+              if (index === 3) {
+                return `
+                  <div class="homeBox merged">
+                    <div class="label">Combined</div>
+                    <div class="value homeBoxValue">0.0</div>
+                  </div>
+                `;
+              }
+              if (index === 5) {
+                return '';
+              }
+              return `
+                <div class="homeBox">
+                  <div class="label">Box ${index + 1}</div>
+                  <div class="value homeBoxValue">0.0</div>
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
       </div>`;
