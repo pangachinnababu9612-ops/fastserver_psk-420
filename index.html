@@ -55,6 +55,22 @@
   input[type=text]{padding:9px 10px;border-radius:6px;border:1px solid #2a2f3a;
     background:#0d0f14;color:var(--text);flex:1;min-width:150px;}
 
+  .motorControlRow{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:10px;}
+  .motorHeader{display:flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:18px;}
+  .motorHeader label{display:flex;align-items:center;gap:10px;color:var(--text);font-size:14px;}
+  .motorBox{flex:1 1 45%;min-width:170px;background:#12151c;border:1px solid #232734;border-radius:12px;padding:22px 16px 24px;text-align:center;}
+  .motorTitle{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:16px;}
+  .triButtons{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 0;}
+  .triangle{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;background:var(--accent);border:none;cursor:pointer;transition:transform .2s;}
+  .triangle.up{clip-path:polygon(50% 10%, 90% 85%, 10% 85%);}
+  .triangle.down{clip-path:polygon(10% 15%, 90% 15%, 50% 90%);}
+  .triangle:hover{transform:scale(1.08);}
+  .triangle:disabled{opacity:.4;cursor:not-allowed;}
+  @media (max-width:520px){
+    .motorControlRow{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;}
+    .motorBox{flex:0 0 210px;}
+  }
+
   .box{
     width:250px;
     margin:30px auto;
@@ -190,19 +206,36 @@ function render(){
         <div class="row"><span class="label">UID</span><span class="value">${latestData.rfid || 'None'}</span></div>
       </div>`,
     "Manage:Bluethoot": ()=>`
-      <div class="card"><h2>Add Authorized Card</h2>
+      <div class="card"><h2>Motor Control</h2>
+        <div class="motorHeader">
+          <label><input type="checkbox" id="topCheck1"> control manually</label>
+          <label><input type="checkbox" id="topCheck2"> control by bluethoot</label>
+        </div>
+        <div class="motorControlRow">
+          <div class="motorBox">
+            <div class="motorTitle">M1</div>
+            <div class="triButtons">
+              <button class="triangle up" onclick="sendMotor('m1','forward')" title="Forward"></button>
+              <button class="triangle down" onclick="sendMotor('m1','reverse')" title="Reverse"></button>
+            </div>
+          </div>
+          <div class="motorBox">
+            <div class="motorTitle">M2</div>
+            <div class="triButtons">
+              <button class="triangle up" onclick="sendMotor('m2','forward')" title="Forward"></button>
+              <button class="triangle down" onclick="sendMotor('m2','reverse')" title="Reverse"></button>
+            </div>
+          </div>
+        </div>
         <div class="btnRow">
-          <input type="text" id="uidInput" placeholder="Enter UID">
-          <button class="ctrl" onclick="openYoutube()">Add</button>
+          <button class="ctrl secondary" onclick="stopMotors()">Stop All</button>
         </div>
       </div>`,
-    "Display:Send Text": ()=>`
-      <div class="card"><h2>LCD Text</h2>
-        <div class="row"><span class="label">Current</span><span class="value">${latestData.lcd || ''}</span></div>
-        <div class="btnRow">
-          <input type="text" id="lcdInput" placeholder="Text to display">
-          <button class="ctrl" onclick="sendLcdText()">Send</button>
-        </div>
+    "Order:Paid": ()=>`
+    <div class="card">
+      <button class="ctrl" onclick="update()">Open YouTube</button>
+      <h2>Temperature :<span id="temp">0</span></h2>
+      <h2>Humidity :<span id="hum">0</span></h2>
       </div>`,
     "Display:Backlight": ()=>`
       <div class="card"><h2>Backlight</h2>
@@ -257,6 +290,12 @@ async function addCard(){
   document.getElementById("Content").innerHTML = "<h2>hello</h2>";
   await sendControl('rfid', 'add:' + uid);
 }
+async function sendMotor(motor, direction){
+  await sendControl('motor', `${motor}:${direction}`);
+}
+async function stopMotors(){
+  await sendControl('motor', 'stop');
+}
 async function sendLcdText(){
   const t = document.getElementById('lcdInput').value;
   await sendControl('lcd', 'text:' + t);
@@ -292,6 +331,27 @@ function updateValue() {
         const value = (25 + Math.random() * 10 + index * 0.4).toFixed(1);
         el.textContent = value;
     });
+}
+
+async function update()
+{
+    try {
+        const endpoint = 'http://192.168.1.20/data';
+        console.log('Fetching ESP32 data from', endpoint);
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        const tempEl = document.getElementById("temp");
+        const humEl = document.getElementById("hum");
+        if (tempEl) tempEl.textContent = data.temperature ?? '';
+        if (humEl) humEl.textContent = data.humidity ?? '';
+    } catch (error) {
+        console.error('Failed to fetch ESP32 data:', error);
+    }
 }
 
 
