@@ -233,10 +233,10 @@ function render(){
       </div>`,
     "Order:Paid": ()=>`
     <div class="card">
-      <button class="ctrl" onclick="update()">Open YouTube</button>
-      <h2>Temperature :<span id="temp">0</span></h2>
+      <button class="ctrl" onclick="update()">Refresh Sensor Data</button>
+      <h2>Temperature :<div id="tempature">0</div></h2>
       <h2>Humidity :<span id="hum">0</span></h2>
-      </div>`,
+      `,
     "Display:Backlight": ()=>`
       <div class="card"><h2>Backlight</h2>
         <div class="btnRow">
@@ -333,27 +333,17 @@ function updateValue() {
     });
 }
 
-async function update()
-{
-    try {
-        const endpoint = 'http://192.168.1.20/data';
-        console.log('Fetching ESP32 data from', endpoint);
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        const tempEl = document.getElementById("temp");
-        const humEl = document.getElementById("hum");
-        if (tempEl) tempEl.textContent = data.temperature ?? '';
-        if (humEl) humEl.textContent = data.humidity ?? '';
-    } catch (error) {
-        console.error('Failed to fetch ESP32 data:', error);
-    }
+async function update() {
+    const endpoint = 'http://192.168.1.20/data';
+    const response = await fetch(endpoint, { cache: 'no-store' });
+    const data = await response.json();
+    document.getElementById("tempature").textContent = 29.6;
+    const humEl = document.getElementById('hum');
+   
+    humEl.textContent = data.humidity ;
+    
+    
 }
-
 
 
 buildMainBar();
