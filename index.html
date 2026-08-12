@@ -84,8 +84,9 @@
 .homeAction{display:flex;justify-content:center;margin:8px 0 12px;}
 .homeAction .ctrl{width:100%;}
 /* 2 columns x 4 rows layout for the dashboard boxes */
+#Container{display:flex;flex-direction:column;gap:12px;}
 .homeGrid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;}
-.homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;min-height:108px;display:flex;flex-direction:column;justify-content:center;}
+.homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;min-height:108px;display:flex;flex-direction:column;justify-content:center;width:100%;}
 .homeBox.merged{grid-column:2;grid-row:span 2;min-height:228px;}
    
 
@@ -130,6 +131,7 @@ function buildMainBar(){
       buildMainBar();
       buildSubBar();
       render();
+      if (activeMain === 'Order' && activeSub === 'Paid') update();
     };
     bar.appendChild(b);
   });
@@ -149,7 +151,12 @@ function buildSubBar(){
     const b = document.createElement('button');
     b.className = 'subBtn' + (name===activeSub ? ' active':'');
     b.textContent = name;
-    b.onclick = ()=>{ activeSub = name; buildSubBar(); render(); };
+    b.onclick = ()=>{
+      activeSub = name;
+      buildSubBar();
+      render();
+      if (activeMain === 'Order' && activeSub === 'Paid') update();
+    };
     bar.appendChild(b);
   });
 }
@@ -232,11 +239,10 @@ function render(){
         </div>
       </div>`,
     "Order:Paid": ()=>`
-    <div class="card">
       <button class="ctrl" onclick="update()">Refresh Sensor Data</button>
-      <h2>Temperature :<div id="tempature">0</div></h2>
-      <h2>Humidity :<span id="hum">0</span></h2>
-      `,
+      <div class="card">
+        <div id="Container"></div>
+      </div>`,
     "Display:Backlight": ()=>`
       <div class="card"><h2>Backlight</h2>
         <div class="btnRow">
@@ -244,6 +250,7 @@ function render(){
           <button class="ctrl secondary" onclick="sendControl('lcd','backlight_off')">Off</button>
         </div>
       </div>`,
+
     "Network:Devices": ()=>`
       <div class="card"><h2>Connected Nodes</h2>
         <div class="row"><span class="label">ESP-NOW peers</span><span class="value">${latestData.nodes ?? 0}</span></div>
@@ -337,11 +344,30 @@ async function update() {
     const endpoint = 'http://192.168.1.20/data';
     const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
-    document.getElementById("tempature").textContent = 29.6;
-    const humEl = document.getElementById('hum');
-   
-    humEl.textContent = data.humidity ;
-    
+    // Remove old boxes
+    const container = document.getElementById("Container");
+    container.innerHTML = "";
+
+
+    // Create one box for every key/value
+    for (const [key, value] of Object.entries(data)) {
+
+    // Create box
+    const box = document.createElement("div");
+     box.classList.add("homeBox");     
+
+
+    // Create key
+    const keyElement = document.createElement("div");
+            
+
+          keyElement.textContent = key + ": " + value;
+          
+          box.appendChild(keyElement);
+           
+          container.appendChild(box);
+        }
+
     
 }
 
