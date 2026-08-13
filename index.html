@@ -341,34 +341,72 @@ function updateValue() {
 }
 
 async function update() {
-    const endpoint = 'http://192.168.1.20/data';
+  const endpoint = 'http://192.168.1.20/data';
+  try {
     const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
     // Remove old boxes
     const container = document.getElementById("Container");
     container.innerHTML = "";
 
+    // Create one box for every top-level key
+    for (const [heading, value] of Object.entries(data)) {
+      const box = document.createElement("div");
+      box.classList.add("homeBox");
 
-    // Create one box for every key/value
-    for (const [key, value] of Object.entries(data)) {
+      // Heading at top of the box
+      const headingEl = document.createElement('div');
+      headingEl.className = 'motorTitle';
+      headingEl.textContent = heading;
+      box.appendChild(headingEl);
 
-    // Create box
-    const box = document.createElement("div");
-     box.classList.add("homeBox");     
+      // If the value is an object, render its keys and values as a list
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const ul = document.createElement('ul');
+        ul.style.listStyle = 'none';
+        ul.style.padding = '0';
+        ul.style.margin = '8px 0 0 0';
 
-
-    // Create key
-    const keyElement = document.createElement("div");
-            
-
-          keyElement.textContent = key + ": " + value;
-          
-          box.appendChild(keyElement);
-           
-          container.appendChild(box);
+        for (const [k, v] of Object.entries(value)) {
+          const li = document.createElement('li');
+          li.className = 'row';
+          const keySpan = document.createElement('span');
+          keySpan.className = 'label';
+          keySpan.textContent = k;
+          const valueSpan = document.createElement('span');
+          valueSpan.className = 'value';
+          valueSpan.textContent = String(v);
+          li.appendChild(keySpan);
+          li.appendChild(valueSpan);
+          ul.appendChild(li);
         }
+        box.appendChild(ul);
 
-    
+      } else if (Array.isArray(value)) {
+        // For arrays, show each item as a list entry
+        const ul = document.createElement('ul');
+        ul.style.padding = '0';
+        ul.style.margin = '8px 0 0 0';
+        value.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = String(item);
+          ul.appendChild(li);
+        });
+        box.appendChild(ul);
+
+      } else {
+        // Scalar value
+        const vdiv = document.createElement('div');
+        vdiv.className = 'value';
+        vdiv.textContent = String(value);
+        box.appendChild(vdiv);
+      }
+
+      container.appendChild(box);
+    }
+  } catch (err) {
+    console.error('update() error:', err);
+  }
 }
 
 
