@@ -110,7 +110,7 @@ h1{
 const FEATURES = {
   "Start": [null],
   "Manage": ["Control", "Bluethoot"],
-  "Order": ["Paid", "No paid","Above 100","Above 500"],
+  "Order": ["Order list", "Payment list"],
   
 };
 
@@ -238,22 +238,16 @@ function render(){
           <button class="ctrl secondary" onclick="stopMotors()">Stop All</button>
         </div>
       </div>`,
-    "Order:Paid": ()=>`
-      <button class="ctrl" onclick="update()">Refresh Sensor Data</button>
+    "Order:Order list": ()=>`
+      <button class="ctrl" onclick="update(false)">Refresh Sensor Data</button>
       <div class="card">
-        <div id="Container"></div>
+        <div id="Container8565"></div>
       </div>`,
-    "Display:Backlight": ()=>`
-      <div class="card"><h2>Backlight</h2>
-        <div class="btnRow">
-          <button class="ctrl" onclick="sendControl('lcd','backlight_on')">On</button>
-          <button class="ctrl secondary" onclick="sendControl('lcd','backlight_off')">Off</button>
-        </div>
-      </div>`,
-
-    "Network:Devices": ()=>`
-      <div class="card"><h2>Connected Nodes</h2>
-        <div class="row"><span class="label">ESP-NOW peers</span><span class="value">${latestData.nodes ?? 0}</span></div>
+  
+    "Order:Payment list": ()=>`
+      <button class="ctrl" onclick="update(true)">Refresh Sensor Data</button>
+      <div class="card">
+        <div id="Container7624"></div>
       </div>`,
     "Network:MQTT": ()=>`
       <div class="card"><h2>MQTT</h2>
@@ -340,13 +334,19 @@ function updateValue() {
     });
 }
 
-async function update() {
-  const endpoint = 'http://192.168.1.20/data';
+async function update(state) {
+  if (state){
+  const endpoint = 'http://192.168.1.20/data11';
+  const container = document.getElementById("Container8565");
+  } else {
+  const endpoint = 'http://192.168.1.20/data22';
+  const container = document.getElementById("Container7624");
+  }
   try {
     const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
     // Remove old boxes
-    const container = document.getElementById("Container");
+    
     container.innerHTML = "";
 
     // Create one box for every top-level key
