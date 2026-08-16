@@ -88,7 +88,83 @@
 .homeGrid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;}
 .homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;min-height:108px;display:flex;flex-direction:column;justify-content:center;width:100%;}
 .homeBox.merged{grid-column:2;grid-row:span 2;min-height:228px;}
-   
+
+.manageGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap:18px;
+  margin-top:10px;
+}
+.controlBox{
+  background:#12151c;
+  border:1px solid #232734;
+  border-radius:12px;
+  padding:18px;
+  min-height:240px;
+}
+.controlBox h3{
+  margin:0 0 16px;
+  font-size:15px;
+  color:var(--accent);
+  text-align:center;
+}
+.controlButtons{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  margin-bottom:16px;
+}
+.displayPanel{
+  background:#0d0f14;
+  border:1px solid #2a2f3a;
+  border-radius:8px;
+  min-height:110px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--text);
+  font-size:18px;
+  font-weight:600;
+  padding:12px;
+  text-align:center;
+}
+.checkArea{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.checkRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:var(--text);
+  font-size:14px;
+}
+.inputGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.inputGrid input{
+  width:100%;
+  padding:9px 10px;
+  border-radius:6px;
+  border:1px solid #2a2f3a;
+  background:#0d0f14;
+  color:var(--text);
+}
+.fullWidthInput{
+  width:100%;
+  margin-top:16px;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid #2a2f3a;
+  background:#0d0f14;
+  color:var(--text);
+  font-size:14px;
+  box-sizing:border-box;
+}
 
 h1{
     color: var(--accent) ;
@@ -109,7 +185,7 @@ h1{
 // ---------------------------------------------------------------
 const FEATURES = {
   "Start": [null],
-  "Manage": ["Control", "Bluethoot"],
+  "Manage": ["Control", "Bluetooth"],
   "Order": ["Order list", "Payment list"],
   
 };
@@ -209,10 +285,39 @@ function render(){
   const renderers = {
    
     "Manage:Control": ()=>`
-      <div class="card"><h2>Last Scanned Tag</h2>
-        <div class="row"><span class="label">UID</span><span class="value">${latestData.rfid || 'None'}</span></div>
+      <div class="manageGrid">
+        <div class="controlBox">
+          <h3>Box 1</h3>
+          <div class="controlButtons">
+            <button class="ctrl" type="button">Button 1</button>
+            <button class="ctrl secondary" type="button">Button 2</button>
+            <button class="ctrl" type="button">Button 3</button>
+            <button class="ctrl secondary" type="button">Button 4</button>
+          </div>
+          <div class="displayPanel" id="controlDisplay">Output</div>
+          <input class="fullWidthInput" type="text" placeholder="Friend message">
+        </div>
+
+        <div class="controlBox">
+          <h3>Box 2</h3>
+          <div class="checkArea">
+            <label class="checkRow"><input type="checkbox"> Enable Motor</label>
+            <label class="checkRow"><input type="checkbox"> Enable LED</label>
+          </div>
+          <div class="inputGrid">
+            <input type="text" placeholder="P 1">
+            <input type="text" placeholder="P 2">
+            <input type="text" placeholder="I 1">
+            <input type="text" placeholder="I 2">
+            <input type="text" placeholder="D 1">
+            <input type="text" placeholder="D 2">
+          </div>
+          <div class="enterBtnWrap">
+            <button class="ctrl" type="button">Enter</button>
+          </div>
+        </div>
       </div>`,
-    "Manage:Bluethoot": ()=>`
+    "Manage:Bluetooth": ()=>`
       <div class="card"><h2>Motor Control</h2>
         <div class="motorHeader">
           <label><input type="checkbox" id="topCheck1"> control manually</label>
@@ -235,7 +340,7 @@ function render(){
           </div>
         </div>
         <div class="btnRow">
-          <button class="ctrl secondary" onclick="stopMotors()">Stop All</button>
+          <button class="ctrl" onclick="stopMotors()">StopAll</button>
         </div>
       </div>`,
     "Order:Order list": ()=>`
@@ -248,25 +353,8 @@ function render(){
       <button class="ctrl" onclick="update(true)">Refresh Sensor Data</button>
       <div class="card">
         <div id="Container7624"></div>
-      </div>`,
-    "Network:MQTT": ()=>`
-      <div class="card"><h2>MQTT</h2>
-        <div class="btnRow">
-          <button class="ctrl" onclick="sendControl('mqtt','reconnect')">Reconnect</button>
-        </div>
-      </div>`,
-    "Power:Live Voltage": ()=>`
-      <div class="card"><h2>AC Voltage (ZMPT101B)</h2>
-        <div class="row"><span class="label">Reading</span>
-          <span class="value good">${(latestData.voltage ?? 0).toFixed(1)} V</span></div>
-      </div>`,
-    "Power:Calibration": ()=>`
-      <div class="card"><h2>Calibration Factor</h2>
-        <div class="btnRow">
-          <input type="text" id="calInput" placeholder="e.g. 1.045">
-          <button class="ctrl" onclick="sendCal()">Apply</button>
-        </div>
       </div>`
+    
   };
   c.innerHTML = (renderers[key] || (()=>'<div class="card">No data</div>'))();
   updateValue();
@@ -329,17 +417,17 @@ function updateValue() {
     }
 
     document.querySelectorAll('.homeBoxValue').forEach((el, index) => {
-        const value = (25 + Math.random() * 10 + index * 0.4).toFixed(1);
+        const value = [10,12,23,34,67,45,56][index % 7];
         el.textContent = value;
     });
 }
 
 async function update(state) {
   if (state){
-  const endpoint = 'http://192.168.1.20/data11';
+  const endpoint = 'http://sanath.local/data11';
   const container = document.getElementById("Container8565");
   } else {
-  const endpoint = 'http://192.168.1.20/data22';
+  const endpoint = 'http://sanath.local/data22';
   const container = document.getElementById("Container7624");
   }
   try {
