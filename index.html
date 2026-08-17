@@ -423,13 +423,18 @@ function updateValue() {
 }
 
 async function update(state) {
+  console.log('update() called with state:', state);
+  let endpoint, container;
   if (state){
-  const endpoint = 'http://sanath.local/data11';
-  const container = document.getElementById("Container8565");
+    console.log('Taking if block (state is true)');
+    endpoint = 'http://192.168.1.7/data11';
+    container = document.getElementById("Container7624");
   } else {
-  const endpoint = 'http://sanath.local/data22';
-  const container = document.getElementById("Container7624");
+    console.log('Taking else block (state is false)');
+    endpoint = 'http://sanath.local/data11';
+    container = document.getElementById("Container8565");
   }
+  console.log('Endpoint:', endpoint, 'Container:', container);
   try {
     const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
