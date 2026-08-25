@@ -88,6 +88,11 @@
 .homeGrid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;}
 .homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;min-height:108px;display:flex;flex-direction:column;justify-content:center;width:100%;}
 .homeBox.merged{grid-column:2;grid-row:span 2;min-height:228px;}
+.orderContainer{display:grid;grid-template-columns:1fr;gap:8px;}
+.orderBox{background:transparent;border:1px solid #2a2f3a;border-radius:6px;padding:8px;min-height:0;}
+.orderBoxHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.orderBoxHeader .motorTitle{margin:0;}
+.orderAction{padding:3px 9px;border:1px solid #2a2f3a;border-radius:5px;background:var(--accent2);color:var(--text);cursor:pointer;font-size:14px;line-height:1;}
 
 .manageGrid{
   display:grid;
@@ -346,13 +351,13 @@ function render(){
     "Order:Order list": ()=>`
       <button class="ctrl" onclick="update(false)">Refresh Sensor Data</button>
       <div class="card">
-        <div id="Container8565"></div>
+        <div id="Container8565" class="orderContainer"></div>
       </div>`,
   
     "Order:Payment list": ()=>`
       <button class="ctrl" onclick="update(true)">Refresh Sensor Data</button>
       <div class="card">
-        <div id="Container7624"></div>
+        <div id="Container7624" class="orderContainer"></div>
       </div>`
     
   };
@@ -427,11 +432,11 @@ async function update(state) {
   let endpoint, container;
   if (state){
     console.log('Taking if block (state is true)');
-    endpoint = 'http://192.168.1.7/data11';
+    endpoint = 'http://192.168.1.20/data11';
     container = document.getElementById("Container7624");
   } else {
     console.log('Taking else block (state is false)');
-    endpoint = 'http://sanath.local/data11';
+    endpoint = 'http://192.168.1.20/data11';
     container = document.getElementById("Container8565");
   }
   console.log('Endpoint:', endpoint, 'Container:', container);
@@ -445,13 +450,22 @@ async function update(state) {
     // Create one box for every top-level key
     for (const [heading, value] of Object.entries(data)) {
       const box = document.createElement("div");
-      box.classList.add("homeBox");
+      box.classList.add("orderBox");
 
-      // Heading at top of the box
+      // Keep the heading and action button on the same compact row.
+      const boxHeader = document.createElement('div');
+      boxHeader.className = 'orderBoxHeader';
       const headingEl = document.createElement('div');
       headingEl.className = 'motorTitle';
       headingEl.textContent = heading;
-      box.appendChild(headingEl);
+      boxHeader.appendChild(headingEl);
+      const actionButton = document.createElement('button');
+      actionButton.type = 'button';
+      actionButton.className = 'orderAction';
+      actionButton.textContent = '>';
+      actionButton.setAttribute('aria-label', `Open ${heading}`);
+      boxHeader.appendChild(actionButton);
+      box.appendChild(boxHeader);
 
       // If the value is an object, render its keys and values as a list
       if (value && typeof value === 'object' && !Array.isArray(value)) {
