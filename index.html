@@ -87,7 +87,9 @@
 #Container{display:flex;flex-direction:column;gap:12px;}
 .homeGrid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;}
 .homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;min-height:108px;display:flex;flex-direction:column;justify-content:center;width:100%;}
-.homeBox.merged{grid-column:2;grid-row:span 2;min-height:228px;}
+.homeBox.merged{grid-column:2;grid-row:span 3;min-height:348px;}
+.homeBox.merged{position:relative;overflow:hidden;}
+.homeBox.merged .homeBoxImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .orderContainer{display:grid;grid-template-columns:1fr;gap:8px;}
 .orderBox{background:transparent;border:1px solid #2a2f3a;border-radius:6px;padding:8px;min-height:0;}
 .orderBoxHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;}
@@ -198,6 +200,8 @@ const FEATURES = {
 let activeMain = "Start";
 let activeSub = null;
 let latestData = {};
+let controlSocket = null;
+let startBoxValues = [0, 0, 0, 0, 0];
 
 function buildMainBar(){
   const bar = document.getElementById('mainBar');
@@ -258,16 +262,18 @@ function render(){
             <button class="ctrl" onclick="openYoutube()">Open YouTube</button>
           </div>
 
-          <!-- 2-column dashboard layout with one merged box -->
+          <!-- 2-column dashboard layout with box 2 and Combined merged -->
           <div class="homeGrid">
             ${[...Array(8)].map((_, index) => {
-              if (index === 3) {
+              if (index === 1) {
                 return `
                   <div class="homeBox merged">
-                    <div class="label">Combined</div>
-                    <div class="value homeBoxValue">0.0</div>
+                    <img class="homeBoxImage" src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80" alt="Combined box image">
                   </div>
                 `;
+              }
+              if (index === 3) {
+                return '';
               }
               if (index === 5) {
                 return '';
@@ -294,10 +300,10 @@ function render(){
         <div class="controlBox">
           <h3>Box 1</h3>
           <div class="controlButtons">
-            <button class="ctrl" type="button">Button 1</button>
-            <button class="ctrl secondary" type="button">Button 2</button>
-            <button class="ctrl" type="button">Button 3</button>
-            <button class="ctrl secondary" type="button">Button 4</button>
+            <button class="ctrl" type="button" onclick="sendWebSocketCommand('SD_RESET')">Button 1</button>
+            <button class="ctrl secondary" type="button" onclick="sendWebSocketCommand('MODE_1')">Button 2</button>
+            <button class="ctrl" type="button" onclick="sendModeWithFriendMessage()">Button 3</button>
+           
           </div>
           <div class="displayPanel" id="controlDisplay">Output</div>
           <input class="fullWidthInput" type="text" placeholder="Friend message">
@@ -306,27 +312,27 @@ function render(){
         <div class="controlBox">
           <h3>Box 2</h3>
           <div class="checkArea">
-            <label class="checkRow"><input type="checkbox"> Enable Motor</label>
-            <label class="checkRow"><input type="checkbox"> Enable LED</label>
+            <label class="checkRow"><input type="checkbox" onchange="sendWebSocketCommand(this.checked ? 'M_ENABLE' : 'M_DISABLE')"> Enable Motor</label>
+            <label class="checkRow"><input type="checkbox" onchange="sendWebSocketCommand(this.checked ? 'LED_ENABLE' : 'LED_DISABLE')"> Enable LED</label>
           </div>
           <div class="inputGrid">
-            <input type="text" placeholder="P 1">
-            <input type="text" placeholder="P 2">
-            <input type="text" placeholder="I 1">
-            <input type="text" placeholder="I 2">
-            <input type="text" placeholder="D 1">
-            <input type="text" placeholder="D 2">
+            <input type="text" data-key="p1" placeholder="P 1">
+            <input type="text" data-key="p2" placeholder="P 2">
+            <input type="text" data-key="i1" placeholder="I 1">
+            <input type="text" data-key="i2" placeholder="I 2">
+            <input type="text" data-key="d1" placeholder="D 1">
+            <input type="text" data-key="d2" placeholder="D 2">
           </div>
           <div class="enterBtnWrap">
-            <button class="ctrl" type="button">Enter</button>
+            <button class="ctrl" type="button" onclick="sendPidValues()">Enter</button>
           </div>
         </div>
       </div>`,
     "Manage:Bluetooth": ()=>`
       <div class="card"><h2>Motor Control</h2>
         <div class="motorHeader">
-          <label><input type="checkbox" id="topCheck1"> control manually</label>
-          <label><input type="checkbox" id="topCheck2"> control by bluethoot</label>
+          <label><input type="checkbox" id="topCheck1" onchange="sendWebSocketCommand(this.checked ? 'over_ENABLE' : 'over_DISABLE')"> control manually</label>
+         
         </div>
         <div class="motorControlRow">
           <div class="motorBox">
@@ -351,13 +357,13 @@ function render(){
     "Order:Order list": ()=>`
       <button class="ctrl" onclick="update(false)">Refresh Sensor Data</button>
       <div class="card">
-        <div id="Container8565" class="orderContainer"></div>
+        <div id="Container8565" class="orderContainer" data-table-action="shift"></div>
       </div>`,
   
     "Order:Payment list": ()=>`
       <button class="ctrl" onclick="update(true)">Refresh Sensor Data</button>
       <div class="card">
-        <div id="Container7624" class="orderContainer"></div>
+        <div id="Container7624" class="orderContainer" data-table-action="delete"></div>
       </div>`
     
   };
@@ -378,6 +384,30 @@ async function sendControl(feature, action){
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({feature, action})
   });
+}
+function sendWebSocketCommand(command){
+  const display = document.getElementById('controlDisplay');
+  if (!controlSocket || controlSocket.readyState !== WebSocket.OPEN) {
+    if (display) display.textContent = 'WebSocket is not connected';
+    return;
+  }
+
+  controlSocket.send(command);
+  if (display) display.textContent = `Sent: ${command}`;
+}
+function sendModeWithFriendMessage(){
+  const messageInput = document.querySelector('.controlBox .fullWidthInput');
+  const message = messageInput ? messageInput.value : '';
+  sendWebSocketCommand(`MODE_2:${message}`);
+}
+function sendTableAction(tableName, action){
+  sendWebSocketCommand(`${tableName}_${action}`);
+}
+function sendPidValues(){
+  const values = Array.from(document.querySelectorAll('.inputGrid input[data-key]'))
+    .map(input => `${input.dataset.key}:${input.value}`)
+    .join(',');
+  sendWebSocketCommand(values);
 }
 async function addCard(){
   const uid = document.getElementById('uidInput').value;
@@ -405,13 +435,29 @@ async function sendCal(){
 function connectWS(){
   const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
   const ws = new WebSocket(`${protocol}${location.host}/ws`);
+  controlSocket = ws;
   ws.onmessage = (evt)=>{
     try{
-      latestData = JSON.parse(evt.data);
-      render();
-    }catch(e){}
+      const message = JSON.parse(evt.data);
+      if (Array.isArray(message)) {
+        const values = message.slice(0, 5).map(Number);
+        if (values.length === 5 && values.every(Number.isFinite)) {
+          startBoxValues = values;
+          updateStartBoxValues();
+        }
+      } else {
+        latestData = message;
+        render();
+      }
+    }catch(e){
+      const display = document.getElementById('controlDisplay');
+      if (display) display.textContent = `Response: ${evt.data}`;
+    }
   };
-  ws.onclose = ()=> setTimeout(connectWS, 1500);
+  ws.onclose = ()=>{
+    if (controlSocket === ws) controlSocket = null;
+    setTimeout(connectWS, 1500);
+  };
 }
 
 function updateValue() {
@@ -421,9 +467,12 @@ function updateValue() {
         tem.textContent = temperature;
     }
 
+    updateStartBoxValues();
+  }
+
+  function updateStartBoxValues() {
     document.querySelectorAll('.homeBoxValue').forEach((el, index) => {
-        const value = [10,12,23,34,67,45,56][index % 7];
-        el.textContent = value;
+      el.textContent = startBoxValues[index];
     });
 }
 
@@ -464,6 +513,7 @@ async function update(state) {
       actionButton.className = 'orderAction';
       actionButton.textContent = '>';
       actionButton.setAttribute('aria-label', `Open ${heading}`);
+      actionButton.onclick = () => sendTableAction(heading, container.dataset.tableAction || 'shift');
       boxHeader.appendChild(actionButton);
       box.appendChild(boxHeader);
 
@@ -521,7 +571,6 @@ buildMainBar();
 buildSubBar();
 render();
 connectWS();
-setInterval(updateValue,1000);
 
 </script>
 </body>
