@@ -216,7 +216,7 @@ function buildMainBar(){
       buildMainBar();
       buildSubBar();
       render();
-      if (activeMain === 'Order' && activeSub === 'Paid') update();
+      if (activeMain === 'Order') update(activeSub === 'Payment list' ? 'payment' : 'order');
     };
     bar.appendChild(b);
   });
@@ -240,7 +240,7 @@ function buildSubBar(){
       activeSub = name;
       buildSubBar();
       render();
-      if (activeMain === 'Order' && activeSub === 'Paid') update();
+      if (activeMain === 'Order') update(activeSub === 'Payment list' ? 'payment' : 'order');
     };
     bar.appendChild(b);
   });
@@ -268,7 +268,7 @@ function render(){
               if (index === 1) {
                 return `
                   <div class="homeBox merged">
-                    <img class="homeBoxImage" src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80" alt="Combined box image">
+                    <img class="homeBoxImage" src="http://192.168.1.20/food.jpg" alt="Combined box image">
                   </div>
                 `;
               }
@@ -300,13 +300,13 @@ function render(){
         <div class="controlBox">
           <h3>Box 1</h3>
           <div class="controlButtons">
-            <button class="ctrl" type="button" onclick="sendWebSocketCommand('SD_RESET')">Button 1</button>
-            <button class="ctrl secondary" type="button" onclick="sendWebSocketCommand('MODE_1')">Button 2</button>
-            <button class="ctrl" type="button" onclick="sendModeWithFriendMessage()">Button 3</button>
+            <button class="ctrl" type="button" onclick="sendWebSocketCommand('SD_RESET')">RESET</button>
+            <button class="ctrl secondary" type="button" onclick="sendWebSocketCommand('MODE1')">MODE 1</button>
+            <button class="ctrl" type="button" onclick="sendModeWithFriendMessage()">MODE 2</button>
            
           </div>
           <div class="displayPanel" id="controlDisplay">Output</div>
-          <input class="fullWidthInput" type="text" placeholder="Friend message">
+          <input class="fullWidthInput" type="text" placeholder="ENTER YOUR STATE">
         </div>
 
         <div class="controlBox">
@@ -316,12 +316,12 @@ function render(){
             <label class="checkRow"><input type="checkbox" onchange="sendWebSocketCommand(this.checked ? 'LED_ENABLE' : 'LED_DISABLE')"> Enable LED</label>
           </div>
           <div class="inputGrid">
-            <input type="text" data-key="p1" placeholder="P 1">
-            <input type="text" data-key="p2" placeholder="P 2">
-            <input type="text" data-key="i1" placeholder="I 1">
-            <input type="text" data-key="i2" placeholder="I 2">
-            <input type="text" data-key="d1" placeholder="D 1">
-            <input type="text" data-key="d2" placeholder="D 2">
+            <input type="text" data-key="P1" placeholder="P 1">
+            <input type="text" data-key="P2" placeholder="P 2">
+            <input type="text" data-key="I1" placeholder="I 1">
+            <input type="text" data-key="I2" placeholder="I 2">
+            <input type="text" data-key="D1" placeholder="D 1">
+            <input type="text" data-key="D2" placeholder="D 2">
           </div>
           <div class="enterBtnWrap">
             <button class="ctrl" type="button" onclick="sendPidValues()">Enter</button>
@@ -355,13 +355,13 @@ function render(){
         </div>
       </div>`,
     "Order:Order list": ()=>`
-      <button class="ctrl" onclick="update(false)">Refresh Sensor Data</button>
+      <button class="ctrl" onclick="update('order')">Refresh Sensor Data</button>
       <div class="card">
         <div id="Container8565" class="orderContainer" data-table-action="shift"></div>
       </div>`,
   
     "Order:Payment list": ()=>`
-      <button class="ctrl" onclick="update(true)">Refresh Sensor Data</button>
+      <button class="ctrl" onclick="update('payment')">Refresh Sensor Data</button>
       <div class="card">
         <div id="Container7624" class="orderContainer" data-table-action="delete"></div>
       </div>`
@@ -398,7 +398,7 @@ function sendWebSocketCommand(command){
 function sendModeWithFriendMessage(){
   const messageInput = document.querySelector('.controlBox .fullWidthInput');
   const message = messageInput ? messageInput.value : '';
-  sendWebSocketCommand(`MODE_2:${message}`);
+  sendWebSocketCommand(`MODE2:${message}`);
 }
 function sendTableAction(tableName, action){
   sendWebSocketCommand(`${tableName}_${action}`);
@@ -420,22 +420,18 @@ async function sendMotor(motor, direction){
 async function stopMotors(){
   await sendControl('motor', 'stop');
 }
-async function sendLcdText(){
-  const t = document.getElementById('lcdInput').value;
-  await sendControl('lcd', 'text:' + t);
-}
-async function sendCal(){
-  const v = document.getElementById('calInput').value;
-  await sendControl('power', 'cal:' + v);
-}
+
 
 // ---------------------------------------------------------------
 // Live data via WebSocket
 // ---------------------------------------------------------------
 function connectWS(){
-  const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-  const ws = new WebSocket(`${protocol}${location.host}/ws`);
+  const ws = new WebSocket('ws://192.168.1.20:81/');
   controlSocket = ws;
+  ws.onopen = ()=>{
+    const display = document.getElementById('controlDisplay');
+    if (display) display.textContent = 'WebSocket connected';
+  };
   ws.onmessage = (evt)=>{
     try{
       const message = JSON.parse(evt.data);
@@ -453,6 +449,10 @@ function connectWS(){
       const display = document.getElementById('controlDisplay');
       if (display) display.textContent = `Response: ${evt.data}`;
     }
+  };
+  ws.onerror = ()=>{
+    const display = document.getElementById('controlDisplay');
+    if (display) display.textContent = 'WebSocket connection failed';
   };
   ws.onclose = ()=>{
     if (controlSocket === ws) controlSocket = null;
@@ -476,18 +476,14 @@ function updateValue() {
     });
 }
 
-async function update(state) {
-  console.log('update() called with state:', state);
-  let endpoint, container;
-  if (state){
-    console.log('Taking if block (state is true)');
-    endpoint = 'http://192.168.1.20/data11';
-    container = document.getElementById("Container7624");
-  } else {
-    console.log('Taking else block (state is false)');
-    endpoint = 'http://192.168.1.20/data11';
-    container = document.getElementById("Container8565");
-  }
+async function update(listType) {
+  const isPaymentList = listType === 'payment';
+  const endpoint = isPaymentList
+    ? 'http://192.168.1.20/data22'
+    : 'http://192.168.1.20/data11';
+  const container = document.getElementById(
+    isPaymentList ? 'Container7624' : 'Container8565'
+  );
   console.log('Endpoint:', endpoint, 'Container:', container);
   try {
     const response = await fetch(endpoint, { cache: 'no-store' });
