@@ -202,6 +202,7 @@ let activeSub = null;
 let latestData = {};
 let controlSocket = null;
 let startBoxValues = [0, 0, 0, 0, 0];
+let manualControlEnabled = false;
 
 function buildMainBar(){
   const bar = document.getElementById('mainBar');
@@ -331,27 +332,27 @@ function render(){
     "Manage:Bluetooth": ()=>`
       <div class="card"><h2>Motor Control</h2>
         <div class="motorHeader">
-          <label><input type="checkbox" id="topCheck1" onchange="sendWebSocketCommand(this.checked ? 'over_ENABLE' : 'over_DISABLE')"> control manually</label>
+          <label><input type="checkbox" id="topCheck1" ${manualControlEnabled ? 'checked' : ''} onchange="setManualControl(this.checked)"> control manually</label>
          
         </div>
         <div class="motorControlRow">
           <div class="motorBox">
             <div class="motorTitle">M1</div>
             <div class="triButtons">
-              <button class="triangle up" onclick="sendMotor('m1','forward')" title="Forward"></button>
-              <button class="triangle down" onclick="sendMotor('m1','reverse')" title="Reverse"></button>
+              <button class="triangle up" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m1','forward')" title="Forward"></button>
+              <button class="triangle down" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m1','reverse')" title="Reverse"></button>
             </div>
           </div>
           <div class="motorBox">
             <div class="motorTitle">M2</div>
             <div class="triButtons">
-              <button class="triangle up" onclick="sendMotor('m2','forward')" title="Forward"></button>
-              <button class="triangle down" onclick="sendMotor('m2','reverse')" title="Reverse"></button>
+              <button class="triangle up" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m2','forward')" title="Forward"></button>
+              <button class="triangle down" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m2','reverse')" title="Reverse"></button>
             </div>
           </div>
         </div>
         <div class="btnRow">
-          <button class="ctrl" onclick="stopMotors()">StopAll</button>
+          <button class="ctrl" ${manualControlEnabled ? '' : 'disabled'} onclick="stopMotors()">StopAll</button>
         </div>
       </div>`,
     "Order:Order list": ()=>`
@@ -400,6 +401,11 @@ function sendModeWithFriendMessage(){
   const message = messageInput ? messageInput.value : '';
   sendWebSocketCommand(`MODE2:${message}`);
 }
+function setManualControl(enabled){
+  manualControlEnabled = enabled;
+  render();
+  sendWebSocketCommand(enabled ? 'over_ENABLE' : 'over_DISABLE');
+}
 function sendTableAction(tableName, action){
   sendWebSocketCommand(`${tableName}_${action}`);
 }
@@ -415,10 +421,12 @@ async function addCard(){
   await sendControl('rfid', 'add:' + uid);
 }
 async function sendMotor(motor, direction){
-  await sendControl('motor', `${motor}:${direction}`);
+  if (!manualControlEnabled) return;
+  sendWebSocketCommand(`${motor}:${direction}`);
 }
 async function stopMotors(){
-  await sendControl('motor', 'stop');
+  if (!manualControlEnabled) return;
+  sendWebSocketCommand('stop');
 }
 
 
