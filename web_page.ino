@@ -1,0 +1,588 @@
+void handleRoot() {
+  String html = R"rawliteral(
+
+    <!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 Dashboard</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a30; --accent:#3ea6ff; --accent2:#1c2733;
+    --text:#e7e9ee; --muted:#8b93a1; --good:#3ecf8e; --bad:#ff5d5d;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  header{padding:10px 20px;border-bottom:1px solid #232734;}
+  header h1{margin:0;font-size:18px;font-weight:600;color:var(--accent);}
+
+  /* ---- top bar: main features ---- */
+  #mainBar{display:flex;gap:8px;padding:10px 16px;background:var(--panel);
+    overflow-x:auto;border-bottom:1px solid #232734;min-height:90px;align-items:center;
+    width:100%;box-sizing:border-box;}
+  .mainBtn{flex:1 1 0;padding:10px 18px;border-radius:8px;border:1px solid #2a2f3a;
+    background:var(--accent2);color:var(--text);cursor:pointer;font-size:14px;white-space:nowrap;
+    height:60px;display:flex;align-items:center;justify-content:center;}
+  .mainBtn.active{background:var(--accent);color:#04121f;font-weight:600;border-color:var(--accent);}
+
+  /* ---- sub bar: sub-features of active main feature ---- */
+  #subBar{display:flex;gap:8px;padding:8px 16px;background:#12151c;
+    overflow-x:auto;border-bottom:1px solid #232734;width:100%;box-sizing:border-box;}
+  #subBar.hidden{display:none;}
+  .subBtn{flex:1 1 0;padding:7px 14px;border-radius:6px;border:1px solid #262b36;
+    background:transparent;color:var(--muted);cursor:pointer;font-size:13px;white-space:nowrap;
+    display:flex;align-items:center;justify-content:center;}
+  .subBtn.active{background:#22293a;color:var(--text);border-color:var(--accent);}
+
+  /* ---- middle content area ---- */
+  #content{padding:20px;max-width:900px;margin:0 auto;}
+  .card{background:var(--panel);border:1px solid #232734;border-radius:10px;
+    padding:18px;margin-bottom:16px;text-align:center;}
+  .card h2{margin:0 0 12px 0;font-size:15px;color:var(--accent);}
+  .row{display:flex;align-items:center;justify-content:space-between;
+    padding:8px 0;border-bottom:1px solid #1e2230;}
+  .row:last-child{border-bottom:none;}
+  .label{color:var(--muted);font-size:13px;}
+  .value{font-size:20px;font-weight:600;}
+  .value.good{color:var(--good);}
+  .value.bad{color:var(--bad);}
+
+  .btnRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  button.ctrl{padding:10px 16px;border-radius:8px;border:none;background:var(--accent);
+    color:#04121f;font-weight:600;cursor:pointer;}
+  button.ctrl.secondary{background:var(--accent2);color:var(--text);border:1px solid #2a2f3a;}
+  input[type=text]{padding:9px 10px;border-radius:6px;border:1px solid #2a2f3a;
+    background:#0d0f14;color:var(--text);flex:1;min-width:150px;}
+
+  .motorControlRow{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:10px;}
+  .motorHeader{display:flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:18px;}
+  .motorHeader label{display:flex;align-items:center;gap:10px;color:var(--text);font-size:14px;}
+  .motorBox{flex:1 1 45%;min-width:170px;background:#12151c;border:1px solid #232734;border-radius:12px;padding:22px 16px 24px;text-align:center;}
+  .motorTitle{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:16px;}
+  .triButtons{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 0;}
+  .triangle{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;background:var(--accent);border:none;cursor:pointer;transition:transform .2s;}
+  .triangle.up{clip-path:polygon(50% 10%, 90% 85%, 10% 85%);}
+  .triangle.down{clip-path:polygon(10% 15%, 90% 15%, 50% 90%);}
+  .triangle:hover{transform:scale(1.08);}
+  .triangle:disabled{opacity:.4;cursor:not-allowed;}
+  @media (max-width:520px){
+    .motorControlRow{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;}
+    .motorBox{flex:0 0 210px;}
+  }
+
+  .box{
+    width:250px;
+    margin:30px auto;
+    padding:20px;
+    background:#333;
+    border-radius:12px;
+    box-shadow:0 0 10px #000;
+}
+
+.homeScreen{display:grid;gap:16px;}
+.homeAction{display:flex;justify-content:center;margin:8px 0 12px;}
+.homeAction .ctrl{width:100%;}
+/* 2 columns x 4 rows layout for the dashboard boxes */
+#Container{display:flex;flex-direction:column;gap:12px;}
+.homeGrid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;}
+.homeBox{background:#22293a;border:1px solid #2a2f3a;border-radius:10px;padding:14px;text-align:center;min-height:108px;display:flex;flex-direction:column;justify-content:center;width:100%;}
+.homeBox.merged{grid-column:2;grid-row:span 3;min-height:348px;}
+.homeBox.merged{position:relative;overflow:hidden;}
+.homeBox.merged .homeBoxImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.orderContainer{display:grid;grid-template-columns:1fr;gap:8px;}
+.orderBox{background:transparent;border:1px solid #2a2f3a;border-radius:6px;padding:8px;min-height:0;}
+.orderBoxHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.orderBoxHeader .motorTitle{margin:0;}
+.orderAction{padding:3px 9px;border:1px solid #2a2f3a;border-radius:5px;background:var(--accent2);color:var(--text);cursor:pointer;font-size:14px;line-height:1;}
+
+.manageGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap:18px;
+  margin-top:10px;
+}
+.controlBox{
+  background:#12151c;
+  border:1px solid #232734;
+  border-radius:12px;
+  padding:18px;
+  min-height:240px;
+}
+.controlBox h3{
+  margin:0 0 16px;
+  font-size:15px;
+  color:var(--accent);
+  text-align:center;
+}
+.controlButtons{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  margin-bottom:16px;
+}
+.displayPanel{
+  background:#0d0f14;
+  border:1px solid #2a2f3a;
+  border-radius:8px;
+  min-height:110px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--text);
+  font-size:18px;
+  font-weight:600;
+  padding:12px;
+  text-align:center;
+}
+.checkArea{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.checkRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:var(--text);
+  font-size:14px;
+}
+.inputGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.inputGrid input{
+  width:100%;
+  padding:9px 10px;
+  border-radius:6px;
+  border:1px solid #2a2f3a;
+  background:#0d0f14;
+  color:var(--text);
+}
+.fullWidthInput{
+  width:100%;
+  margin-top:16px;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid #2a2f3a;
+  background:#0d0f14;
+  color:var(--text);
+  font-size:14px;
+  box-sizing:border-box;
+}
+
+h1{
+    color: var(--accent) ;
+}
+</style>
+</head>
+<body>
+
+<header><h1>ESP32 Control Dashboard</h1></header>
+<div id="mainBar"></div>
+<div id="subBar"></div>
+<div id="content"></div>
+
+<script>
+// ---------------------------------------------------------------
+// Feature map: MAIN -> [ SUB features ]  each sub has a render fn
+// Edit this object to add/remove your own features and sub-features.
+// ---------------------------------------------------------------
+const FEATURES = {
+  "Start": [null],
+  "Manage": ["Control", "Bluetooth"],
+  "Order": ["Order list", "Payment list"],
+  
+};
+
+let activeMain = "Start";
+let activeSub = null;
+let latestData = {};
+let controlSocket = null;
+let startBoxValues = [0, 0, 0, 0, 0];
+let manualControlEnabled = false;
+
+function buildMainBar(){
+  const bar = document.getElementById('mainBar');
+  bar.innerHTML = ' ';
+  Object.keys(FEATURES).forEach(name=>{
+    const b = document.createElement('button');
+    b.className = 'mainBtn' + (name===activeMain ? ' active':'');
+    b.textContent = name;
+    b.onclick = ()=>{
+      activeMain = name;
+      activeSub = name === 'Start' ? null : FEATURES[name][0];
+      buildMainBar();
+      buildSubBar();
+      render();
+      if (activeMain === 'Order') update(activeSub === 'Payment list' ? 'payment' : 'order');
+    };
+    bar.appendChild(b);
+  });
+}
+
+function buildSubBar(){
+  const bar = document.getElementById('subBar');
+  if (activeMain === 'Start') {
+    bar.innerHTML = '';
+    bar.classList.add('hidden');
+    return;
+  }
+
+  bar.classList.remove('hidden');
+  bar.innerHTML = '';
+  FEATURES[activeMain].forEach(name=>{
+    const b = document.createElement('button');
+    b.className = 'subBtn' + (name===activeSub ? ' active':'');
+    b.textContent = name;
+    b.onclick = ()=>{
+      activeSub = name;
+      buildSubBar();
+      render();
+      if (activeMain === 'Order') update(activeSub === 'Payment list' ? 'payment' : 'order');
+    };
+    bar.appendChild(b);
+  });
+}
+
+// ---------------------------------------------------------------
+// Renderers per sub-feature. Each returns HTML for the middle panel.
+// Add a new "Main:Sub" key here whenever you add one to FEATURES.
+// ---------------------------------------------------------------
+function render(){
+  const c = document.getElementById('content');
+  if (!activeSub && activeMain === 'Start') {
+    c.innerHTML = `
+      <div class="homeScreen">
+        <div class="card">
+          <h1>Start Home</h1>
+
+          <div class="homeAction">
+            <button class="ctrl" onclick="openYoutube()">Open YouTube</button>
+          </div>
+
+          <!-- 2-column dashboard layout with box 2 and Combined merged -->
+          <div class="homeGrid">
+            ${[...Array(8)].map((_, index) => {
+              if (index === 1) {
+                return `
+                  <div class="homeBox merged">
+                    <img class="homeBoxImage" src="http://192.168.1.20/food.jpg" alt="Combined box image">
+                  </div>
+                `;
+              }
+              if (index === 3) {
+                return '';
+              }
+              if (index === 5) {
+                return '';
+              }
+              return `
+                <div class="homeBox">
+                  <div class="label">Box ${index + 1}</div>
+                  <div class="value homeBoxValue">0.0</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>`;
+    updateValue();
+    return;
+  }
+
+  const key = activeMain + ':' + activeSub;
+  const renderers = {
+   
+    "Manage:Control": ()=>`
+      <div class="manageGrid">
+        <div class="controlBox">
+          <h3>Box 1</h3>
+          <div class="controlButtons">
+            <button class="ctrl" type="button" onclick="sendWebSocketCommand('SD_RESET')">RESET</button>
+            <button class="ctrl secondary" type="button" onclick="sendWebSocketCommand('MODE1')">MODE 1</button>
+            <button class="ctrl" type="button" onclick="sendModeWithFriendMessage()">MODE 2</button>
+           
+          </div>
+          <div class="displayPanel" id="controlDisplay">Output</div>
+          <input class="fullWidthInput" type="text" placeholder="ENTER YOUR STATE">
+        </div>
+
+        <div class="controlBox">
+          <h3>Box 2</h3>
+          <div class="checkArea">
+            <label class="checkRow"><input type="checkbox" onchange="sendWebSocketCommand(this.checked ? 'M_ENABLE' : 'M_DISABLE')"> Enable Motor</label>
+            <label class="checkRow"><input type="checkbox" onchange="sendWebSocketCommand(this.checked ? 'LED_ENABLE' : 'LED_DISABLE')"> Enable LED</label>
+          </div>
+          <div class="inputGrid">
+            <input type="text" data-key="P1" placeholder="P 1">
+            <input type="text" data-key="P2" placeholder="P 2">
+            <input type="text" data-key="I1" placeholder="I 1">
+            <input type="text" data-key="I2" placeholder="I 2">
+            <input type="text" data-key="D1" placeholder="D 1">
+            <input type="text" data-key="D2" placeholder="D 2">
+          </div>
+          <div class="enterBtnWrap">
+            <button class="ctrl" type="button" onclick="sendPidValues()">Enter</button>
+          </div>
+        </div>
+      </div>`,
+    "Manage:Bluetooth": ()=>`
+      <div class="card"><h2>Motor Control</h2>
+        <div class="motorHeader">
+          <label><input type="checkbox" id="topCheck1" ${manualControlEnabled ? 'checked' : ''} onchange="setManualControl(this.checked)"> control manually</label>
+         
+        </div>
+        <div class="motorControlRow">
+          <div class="motorBox">
+            <div class="motorTitle">M1</div>
+            <div class="triButtons">
+              <button class="triangle up" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m1','forward')" title="Forward"></button>
+              <button class="triangle down" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m1','reverse')" title="Reverse"></button>
+            </div>
+          </div>
+          <div class="motorBox">
+            <div class="motorTitle">M2</div>
+            <div class="triButtons">
+              <button class="triangle up" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m2','forward')" title="Forward"></button>
+              <button class="triangle down" ${manualControlEnabled ? '' : 'disabled'} onclick="sendMotor('m2','reverse')" title="Reverse"></button>
+            </div>
+          </div>
+        </div>
+        <div class="btnRow">
+          <button class="ctrl" ${manualControlEnabled ? '' : 'disabled'} onclick="stopMotors()">StopAll</button>
+        </div>
+      </div>`,
+    "Order:Order list": ()=>`
+      <button class="ctrl" onclick="update('order')">Refresh Sensor Data</button>
+      <div class="card">
+        <div id="Container8565" class="orderContainer" data-table-action="shift"></div>
+      </div>`,
+  
+    "Order:Payment list": ()=>`
+      <button class="ctrl" onclick="update('payment')">Refresh Sensor Data</button>
+      <div class="card">
+        <div id="Container7624" class="orderContainer" data-table-action="delete"></div>
+      </div>`
+    
+  };
+  c.innerHTML = (renderers[key] || (()=>'<div class="card">No data</div>'))();
+  updateValue();
+}
+
+// ---------------------------------------------------------------
+// Backend calls (point these at your ESP32's IP if hosting this
+// HTML file outside the ESP32, e.g. fetch('http://192.168.1.50/api/control'))
+// ---------------------------------------------------------------
+function openYoutube(){
+  window.open('https://www.youtube.com', '_blank', 'noopener,noreferrer');
+}
+
+async function sendControl(feature, action){
+  await fetch('/api/control', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({feature, action})
+  });
+}
+function sendWebSocketCommand(command){
+  const display = document.getElementById('controlDisplay');
+  if (!controlSocket || controlSocket.readyState !== WebSocket.OPEN) {
+    if (display) display.textContent = 'WebSocket is not connected';
+    return;
+  }
+
+  controlSocket.send(command);
+  if (display) display.textContent = `Sent: ${command}`;
+}
+function sendModeWithFriendMessage(){
+  const messageInput = document.querySelector('.controlBox .fullWidthInput');
+  const message = messageInput ? messageInput.value : '';
+  sendWebSocketCommand(`MODE2:${message}`);
+}
+function setManualControl(enabled){
+  manualControlEnabled = enabled;
+  render();
+  sendWebSocketCommand(enabled ? 'over_ENABLE' : 'over_DISABLE');
+}
+function sendTableAction(tableName, action){
+  sendWebSocketCommand(`${tableName}_${action}`);
+}
+function sendPidValues(){
+  const values = Array.from(document.querySelectorAll('.inputGrid input[data-key]'))
+    .map(input => `${input.dataset.key}:${input.value}`)
+    .join(',');
+  sendWebSocketCommand(values);
+}
+async function addCard(){
+  const uid = document.getElementById('uidInput').value;
+  document.getElementById("Content").innerHTML = "<h2>hello</h2>";
+  await sendControl('rfid', 'add:' + uid);
+}
+async function sendMotor(motor, direction){
+  if (!manualControlEnabled) return;
+  sendWebSocketCommand(`${motor}:${direction}`);
+}
+async function stopMotors(){
+  if (!manualControlEnabled) return;
+  sendWebSocketCommand('stop');
+}
+
+
+// ---------------------------------------------------------------
+// Live data via WebSocket
+// ---------------------------------------------------------------
+function connectWS(){
+  const ws = new WebSocket('ws://192.168.1.20:81/');
+  controlSocket = ws;
+  ws.onopen = ()=>{
+    const display = document.getElementById('controlDisplay');
+    if (display) display.textContent = 'WebSocket connected';
+  };
+  ws.onmessage = (evt)=>{
+    try{
+      const message = JSON.parse(evt.data);
+      if (Array.isArray(message)) {
+        const values = message.slice(0, 5).map(Number);
+        if (values.length === 5 && values.every(Number.isFinite)) {
+          startBoxValues = values;
+          updateStartBoxValues();
+        }
+      } else {
+        latestData = message;
+        render();
+      }
+    }catch(e){
+      const display = document.getElementById('controlDisplay');
+      if (display) display.textContent = `Response: ${evt.data}`;
+    }
+  };
+  ws.onerror = ()=>{
+    const display = document.getElementById('controlDisplay');
+    if (display) display.textContent = 'WebSocket connection failed';
+  };
+  ws.onclose = ()=>{
+    if (controlSocket === ws) controlSocket = null;
+    setTimeout(connectWS, 1500);
+  };
+}
+
+function updateValue() {
+    const tem = document.getElementById("tem");
+    if (tem) {
+        const temperature = (25 + Math.random() * 10).toFixed(1);
+        tem.textContent = temperature;
+    }
+
+    updateStartBoxValues();
+  }
+
+  function updateStartBoxValues() {
+    document.querySelectorAll('.homeBoxValue').forEach((el, index) => {
+      el.textContent = startBoxValues[index];
+    });
+}
+
+async function update(listType) {
+  const isPaymentList = listType === 'payment';
+  const endpoint = isPaymentList
+    ? 'http://192.168.1.20/data22'
+    : 'http://192.168.1.20/data11';
+  const container = document.getElementById(
+    isPaymentList ? 'Container7624' : 'Container8565'
+  );
+  console.log('Endpoint:', endpoint, 'Container:', container);
+  try {
+    const response = await fetch(endpoint, { cache: 'no-store' });
+    const data = await response.json();
+    // Remove old boxes
+    
+    container.innerHTML = "";
+
+    // Create one box for every top-level key
+    for (const [heading, value] of Object.entries(data)) {
+      const box = document.createElement("div");
+      box.classList.add("orderBox");
+
+      // Keep the heading and action button on the same compact row.
+      const boxHeader = document.createElement('div');
+      boxHeader.className = 'orderBoxHeader';
+      const headingEl = document.createElement('div');
+      headingEl.className = 'motorTitle';
+      headingEl.textContent = heading;
+      boxHeader.appendChild(headingEl);
+      const actionButton = document.createElement('button');
+      actionButton.type = 'button';
+      actionButton.className = 'orderAction';
+      actionButton.textContent = '>';
+      actionButton.setAttribute('aria-label', `Open ${heading}`);
+      actionButton.onclick = () => sendTableAction(heading, container.dataset.tableAction || 'shift');
+      boxHeader.appendChild(actionButton);
+      box.appendChild(boxHeader);
+
+      // If the value is an object, render its keys and values as a list
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const ul = document.createElement('ul');
+        ul.style.listStyle = 'none';
+        ul.style.padding = '0';
+        ul.style.margin = '8px 0 0 0';
+
+        for (const [k, v] of Object.entries(value)) {
+          const li = document.createElement('li');
+          li.className = 'row';
+          const keySpan = document.createElement('span');
+          keySpan.className = 'label';
+          keySpan.textContent = k;
+          const valueSpan = document.createElement('span');
+          valueSpan.className = 'value';
+          valueSpan.textContent = String(v);
+          li.appendChild(keySpan);
+          li.appendChild(valueSpan);
+          ul.appendChild(li);
+        }
+        box.appendChild(ul);
+
+      } else if (Array.isArray(value)) {
+        // For arrays, show each item as a list entry
+        const ul = document.createElement('ul');
+        ul.style.padding = '0';
+        ul.style.margin = '8px 0 0 0';
+        value.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = String(item);
+          ul.appendChild(li);
+        });
+        box.appendChild(ul);
+
+      } else {
+        // Scalar value
+        const vdiv = document.createElement('div');
+        vdiv.className = 'value';
+        vdiv.textContent = String(value);
+        box.appendChild(vdiv);
+      }
+
+      container.appendChild(box);
+    }
+  } catch (err) {
+    console.error('update() error:', err);
+  }
+}
+
+
+buildMainBar();
+buildSubBar();
+render();
+connectWS();
+
+</script>
+</body>
+</html>
+
+    )rawliteral";
+ server.send(200, "text/html", html);
+}
