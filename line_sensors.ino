@@ -75,7 +75,7 @@ void lostLineHandler() {
 
   for (int i = 0; i < NUM_SENSORS; i++) calVal[i] = lastValidCalVal[i];
 
-  float err        = (float)lastValidPosition;
+  float err        = -(float)lastValidPosition;
   float derivative = err - lastError;
   lastError        = err;
 
